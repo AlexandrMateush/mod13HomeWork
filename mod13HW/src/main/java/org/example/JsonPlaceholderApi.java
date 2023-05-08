@@ -1,5 +1,6 @@
 package org.example;
 
+import com.google.gson.Gson;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -10,33 +11,49 @@ import java.io.*;
 import java.net.HttpURLConnection;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-public class JsonPlaceholderApi {
+public class JsonPlaceholderApi  {
+
 
     private static final String API_BASE_URL = "https://jsonplaceholder.typicode.com";
+    private static final Gson gson = new Gson();
 
-    public static JSONObject createUser(JSONObject user) throws IOException, JSONException {
+    public static User createUser(User user) throws IOException, JSONException {
         Connection.Response response = Jsoup.connect(API_BASE_URL + "/users")
                 .header("Content-Type", "application/json")
                 .requestBody(user.toString())
                 .method(Connection.Method.POST)
                 .ignoreContentType(true)
                 .execute();
-        return new JSONObject(response.body());
+        JSONObject jsonObject = new JSONObject(response.body());
+        User createdUser = new User();
+        createdUser.setId(jsonObject.getInt("id"));
+        createdUser.setName(jsonObject.getString("name"));
+        createdUser.setUsername(jsonObject.getString("username"));
+        createdUser.setEmail(jsonObject.getString("email"));
+        return createdUser;
     }
 
-    public static JSONObject updateUser(int id, JSONObject user) throws IOException, JSONException {
+    public static User updateUser(int id, User user) throws IOException, JSONException {
         Connection.Response response = Jsoup.connect(API_BASE_URL + "/users/" + id)
                 .header("Content-Type", "application/json")
                 .requestBody(user.toString())
                 .method(Connection.Method.PUT)
                 .ignoreContentType(true)
                 .execute();
-        return new JSONObject(response.body());
+        JSONObject jsonObject = new JSONObject(response.body());
+        User updatedUser = new User();
+        updatedUser.setId(jsonObject.getInt("id"));
+        updatedUser.setName(jsonObject.getString("name"));
+        updatedUser.setUsername(jsonObject.getString("username"));
+        updatedUser.setEmail(jsonObject.getString("email"));
+        return updatedUser;
     }
 
     public static boolean deleteUser(int id) throws IOException {
@@ -47,29 +64,56 @@ public class JsonPlaceholderApi {
         return response.statusCode() >= 200 && response.statusCode() < 300;
     }
 
-    public static JSONObject getAllUsers() throws IOException, JSONException {
+    public static List<User> getAllUsers() throws IOException, JSONException {
         Connection.Response response = Jsoup.connect(API_BASE_URL + "/users")
                 .method(Connection.Method.GET)
                 .ignoreContentType(true)
                 .execute();
-        return new JSONObject(response.body());
+        JSONArray jsonArray = new JSONArray(response.body());
+        List<User> users = new ArrayList<>();
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            User user = new User();
+            user.setId(jsonObject.getInt("id"));
+            user.setName(jsonObject.getString("name"));
+            user.setUsername(jsonObject.getString("username"));
+            user.setEmail(jsonObject.getString("email"));
+            users.add(user);
+        }
+        return users;
     }
 
-    public static JSONObject getUserById(int id) throws IOException, JSONException {
+    public static User getUserById(int id) throws IOException, JSONException {
         Connection.Response response = Jsoup.connect(API_BASE_URL + "/users/" + id)
                 .method(Connection.Method.GET)
                 .ignoreContentType(true)
                 .execute();
-        return new JSONObject(response.body());
+        JSONObject jsonObject = new JSONObject(response.body());
+        User user = new User();
+        user.setId(jsonObject.getInt("id"));
+        user.setName(jsonObject.getString("name"));
+        user.setUsername(jsonObject.getString("username"));
+        user.setEmail(jsonObject.getString("email"));
+        return user;
     }
 
-    public static JSONObject getUserByUsername(String username) throws IOException, JSONException {
+    public static User getUserByUsername(String username) throws IOException, JSONException {
         Connection.Response response = Jsoup.connect(API_BASE_URL + "/users")
                 .data("username", username)
                 .method(Connection.Method.GET)
                 .ignoreContentType(true)
                 .execute();
-        return new JSONObject(response.body());
+        JSONArray jsonArray = new JSONArray(response.body());
+        if (jsonArray.length() == 0) {
+            return null;
+        }
+        JSONObject jsonObject = jsonArray.getJSONObject(0);
+        User user = new User();
+        user.setId(jsonObject.getInt("id"));
+        user.setName(jsonObject.getString("name"));
+        user.setUsername(jsonObject.getString("username"));
+        user.setEmail(jsonObject.getString("email"));
+        return user;
     }
     public static void getCommentsForLastPost(int userId, String fileName) throws IOException, JSONException {
 
@@ -82,14 +126,14 @@ public class JsonPlaceholderApi {
         url = String.format("https://jsonplaceholder.typicode.com/posts/%d/comments", postId);
         JSONArray comments = new JSONArray(sendGetRequest(url));
 
-        JSONObject userInfo = getUserInfo(userId);
+        User userInfo = getUserInfo(userId);
         String filename = String.format("user-%d-post-%d-comments.json", userId, postId);
         BufferedWriter writer = new BufferedWriter(new FileWriter(filename));
         writer.write(comments.toString());
         writer.close();
 
         System.out.printf("Коментарі до останнього поста користувача %s (%s) збережено у файл %s%n",
-                userInfo.getString("name"), userInfo.getString("email"), filename);
+                userInfo.getName(), userInfo.getEmail(), filename);
     }
     public static String sendGetRequest(String url) throws IOException {
         URL obj = new URL(url);
@@ -105,11 +149,11 @@ public class JsonPlaceholderApi {
         in.close();
         return response.toString();
     }
-    public static JSONObject getUserInfo(int userId) throws IOException, JSONException {
-        String url = "https://jsonplaceholder.typicode.com/users/" + userId;
+
+    public static User getUserInfo(int userId) throws IOException {
+        String url = API_BASE_URL + "/users/" + userId;
         String response = sendGetRequest(url);
-        JSONObject userInfo = new JSONObject(response);
-        return userInfo;
+        return gson.fromJson(response, User.class);
     }
     public static void printOpenTasksForUser(int userId) {
         String url = "https://jsonplaceholder.typicode.com/users/" + userId + "/todos";
